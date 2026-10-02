@@ -1,0 +1,3 @@
+# 可选额外 Git 上游监控。
+# 格式：label|git_url|branch_or_tag
+# SOURCE_REPO / SOURCE_BRANCH 已自动监控，无需重复填写。
