@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-ng.invalid/schema/control-plane-v1.json",
+  "title": "OpenWrt NG Control Plane API v1",
+  "type": "object",
+  "description": "V2 Control Plane public response shapes. GitHub tokens, installation IDs and secrets are intentionally absent.",
+  "$defs": {
+    "health": {
+      "type": "object",
+      "required": ["ok", "version", "runtime", "configured"],
+      "additionalProperties": false,
+      "properties": {
+        "ok": {"const": true},
+        "version": {"const": 1},
+        "runtime": {"enum": ["cloudflare-workers", "self-hosted-node"]},
+        "configured": {"type": "boolean"}
+      }
+    },
+    "publicConfig": {
+      "type": "object",
+      "required": ["configured", "githubAppInstallUrl"],
+      "additionalProperties": false,
+      "properties": {
+        "configured": {"type": "boolean"},
+        "githubAppInstallUrl": {"type": "string"}
+      }
+    },
+    "user": {
+      "type": "object",
+      "required": ["login", "avatarUrl"],
+      "additionalProperties": false,
+      "properties": {
+        "login": {"type": "string", "minLength": 1},
+        "avatarUrl": {"type": "string"}
+      }
+    },
+    "session": {
+      "type": "object",
+      "required": ["authenticated"],
+      "additionalProperties": false,
+      "properties": {
+        "authenticated": {"type": "boolean"},
+        "user": {"$ref": "#/$defs/user"},
+        "expiresAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "repository": {
+      "type": "object",
+      "required": ["owner", "name", "fullName", "defaultBranch", "private", "permissions"],
+      "additionalProperties": false,
+      "properties": {
+        "owner": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "fullName": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
+        "defaultBranch": {"type": "string", "minLength": 1},
+        "private": {"type": "boolean"},
+        "permissions": {
+          "type": "object",
+          "required": ["contents"],
+          "additionalProperties": false,
+          "properties": {
+            "contents": {"enum": ["none", "read", "write"]}
+          }
+        }
+      }
+    },
+    "repositoriesResponse": {
+      "type": "object",
+      "required": ["repositories"],
+      "additionalProperties": false,
+      "properties": {
+        "repositories": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/repository"}
+        }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "required": ["id", "path", "sha"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "path": {"type": "string", "minLength": 1},
+        "sha": {"type": "string"}
+      }
+    },
+    "profilesResponse": {
+      "type": "object",
+      "required": ["owner", "repo", "profiles"],
+      "additionalProperties": false,
+      "properties": {
+        "owner": {"type": "string", "minLength": 1},
+        "repo": {"type": "string", "minLength": 1},
+        "profiles": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/profile"}
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "required": ["error"],
+      "additionalProperties": false,
+      "properties": {
+        "error": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
