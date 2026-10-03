@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Read-only Kconfig exporter for OpenWrt NG Config Studio.
  *
@@ -54,7 +54,6 @@ static void json_string(const char *value)
 static bool excluded_symbol(const char *name)
 {
 	static const char *prefixes[] = {
-		"PACKAGE_",
 		"TARGET_",
 		"DEFAULT_",
 		"MODULE_DEFAULT_",
@@ -166,11 +165,14 @@ static void emit_menu(struct menu *menu)
 			json_string(sym_get_string_value(sym));
 			fputs(",\"assignable\":", stdout);
 			print_assignable(sym);
-			fputs(",\"visible\":true,\"menuPath\":", stdout);
+			printf(",\"visible\":true,\"changeable\":%s,\"menuPath\":",
+			       sym_is_changeable(sym) ? "true" : "false");
 			print_menu_path(child);
 			fputs(",\"help\":", stdout);
 			json_string(menu_get_help(child));
-			fputs("}\n", stdout);
+			fputs(",\"source\":", stdout);
+			json_string(child->file && child->file->name ? child->file->name : "");
+			printf(",\"line\":%d}\n", child->lineno);
 		}
 
 		emit_menu(child);
