@@ -1,0 +1,31 @@
+name: Temporary cleanup Test release fallback branch
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/_tmp-cleanup-test-release-fallback.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: 删除 Test Release fallback 分支
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/git/refs/heads/test/release-fallback-sync"
+          status="$(curl -sS -o /tmp/delete-ref.json -w '%{http_code}'             -X DELETE             -H "Accept: application/vnd.github+json"             -H "Authorization: Bearer ${GH_TOKEN}"             -H "X-GitHub-Api-Version: 2022-11-28"             "${api}")"
+          if [ "${status}" = "204" ]; then
+            echo "已删除 test/release-fallback-sync"
+          elif [ "${status}" = "422" ] || [ "${status}" = "404" ]; then
+            echo "分支已不存在"
+          else
+            cat /tmp/delete-ref.json >&2 || true
+            exit 1
+          fi
