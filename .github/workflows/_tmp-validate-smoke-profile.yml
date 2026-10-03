@@ -1,0 +1,50 @@
+name: Temporary validate MT7621 smoke profile
+
+on:
+  push:
+    branches:
+      - test/add-fast-smoke-profile
+    paths:
+      - ".github/workflows/_tmp-validate-smoke-profile.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: 检出测试仓
+        uses: actions/checkout@v7
+
+      - name: 检查 Profile 结构
+        run: |
+          set -Eeuo pipefail
+          test -f profiles/smoke/profile.env
+          test -f profiles/smoke/.config
+          test -x profiles/smoke/diy-part1.sh
+          test -x profiles/smoke/diy-part2.sh
+          bash -n profiles/smoke/diy-part1.sh
+          bash -n profiles/smoke/diy-part2.sh
+
+      - name: 浅克隆 Lean
+        run: |
+          set -Eeuo pipefail
+          git clone --depth=1 --branch master https://github.com/coolsnowwolf/lede.git openwrt
+
+      - name: 验证 MT7621 EVB 与 ccache 配置
+        run: |
+          set -Eeuo pipefail
+          grep -Fq 'TARGET_DEVICES += mediatek_mt7621-eval-board' openwrt/target/linux/ramips/image/mt7621.mk
+          cp profiles/smoke/.config openwrt/.config
+          (
+            cd openwrt
+            make defconfig
+          )
+          grep -qx 'CONFIG_TARGET_ramips=y' openwrt/.config
+          grep -qx 'CONFIG_TARGET_ramips_mt7621=y' openwrt/.config
+          grep -qx 'CONFIG_TARGET_ramips_mt7621_DEVICE_mediatek_mt7621-eval-board=y' openwrt/.config
+          grep -qx 'CONFIG_DEVEL=y' openwrt/.config
+          grep -qx 'CONFIG_CCACHE=y' openwrt/.config
+          echo "Smoke Profile defconfig 验证通过"
