@@ -154,6 +154,24 @@ printf '%s\0' \
     return dict(zip(PROFILE_KEYS, values, strict=True))
 
 
+def resolve_baseline_profile(root: Path, profile_ids: list[str]) -> str | None:
+    if not profile_ids:
+        return None
+
+    marker = root / "profiles" / ".baseline"
+    if marker.is_file():
+        baseline = marker.read_text(encoding="utf-8").strip()
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", baseline):
+            raise RuntimeError(f"invalid baseline Profile: {baseline!r}")
+        if baseline not in profile_ids:
+            raise RuntimeError(f"baseline Profile does not exist: {baseline}")
+        return baseline
+
+    if "default" in profile_ids:
+        return "default"
+    return sorted(profile_ids)[0]
+
+
 def load_profiles(root: Path) -> list[dict[str, Any]]:
     profiles = []
     for profile_file in sorted((root / "profiles").glob("*/profile.env")):
@@ -172,6 +190,10 @@ def load_profiles(root: Path) -> list[dict[str, Any]]:
                 "upload_release": env_bool(values["UPLOAD_RELEASE"], True),
             }
         )
+
+    baseline = resolve_baseline_profile(root, [profile["id"] for profile in profiles])
+    for profile in profiles:
+        profile["baseline"] = profile["id"] == baseline
     return profiles
 
 
@@ -218,20 +240,37 @@ def artifact_record(gh: GitHub, run_id: int) -> tuple[str | None, dict[str, str]
         return profile_id, {}
 
 
-def build_job_duration(gh: GitHub, run_id: int) -> int | None:
+def build_job_summary(gh: GitHub, run_id: int) -> dict[str, Any]:
     try:
         data = gh.json(gh.repo_path(f"/actions/runs/{run_id}/jobs?per_page=100"))
     except Exception as exc:
         print(f"warning: cannot read jobs for run {run_id}: {exc}", file=sys.stderr)
-        return None
+        return {
+            "conclusion": None,
+            "succeeded": False,
+            "duration_seconds": None,
+        }
 
     job = next(
         (job for job in data.get("jobs", []) if job.get("name") == "编译 OpenWrt 固件"),
         None,
     )
     if not job:
-        return None
-    return duration_seconds(job.get("started_at"), job.get("completed_at"))
+        return {
+            "conclusion": None,
+            "succeeded": False,
+            "duration_seconds": None,
+        }
+
+    conclusion = job.get("conclusion")
+    return {
+        "conclusion": conclusion,
+        "succeeded": conclusion == "success",
+        "duration_seconds": duration_seconds(
+            job.get("started_at"),
+            job.get("completed_at"),
+        ),
+    }
 
 
 def load_builds(
@@ -263,7 +302,8 @@ def load_builds(
             profile_id = only_profile or "unknown"
 
         status = run.get("conclusion") or run.get("status") or "unknown"
-        build_duration = build_job_duration(gh, run_id)
+        build_job = build_job_summary(gh, run_id)
+        build_duration = build_job["duration_seconds"]
         if build_duration is None:
             build_duration = duration_seconds(
                 run.get("run_started_at") or run.get("created_at"),
@@ -276,6 +316,8 @@ def load_builds(
                 "run_number": run.get("run_number"),
                 "profile": profile_id,
                 "status": status,
+                "build_conclusion": build_job["conclusion"],
+                "build_succeeded": build_job["succeeded"],
                 "event": run.get("event"),
                 "repository_commit": run.get("head_sha"),
                 "commit": info.get("source_commit"),
@@ -303,12 +345,20 @@ def resolve_git_ref(repo: str, ref: str) -> str | None:
         return None
     candidates = [f"refs/heads/{ref}", f"refs/tags/{ref}^{{}}", f"refs/tags/{ref}"]
     for candidate in candidates:
-        proc = subprocess.run(
-            ["git", "ls-remote", "--exit-code", repo, candidate],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-        )
+        try:
+            proc = subprocess.run(
+                ["git", "ls-remote", "--exit-code", repo, candidate],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                timeout=30,
+            )
+        except subprocess.TimeoutExpired:
+            print(
+                f"warning: git ls-remote timed out for {repo} @ {ref}",
+                file=sys.stderr,
+            )
+            return None
         if proc.returncode != 0:
             continue
         for line in proc.stdout.splitlines():
@@ -327,7 +377,10 @@ def attach_profile_status(
         item = dict(profile)
         matching = [build for build in builds if build["profile"] == profile["id"]]
         latest = matching[0] if matching else None
-        latest_success = next((build for build in matching if build["status"] == "success"), None)
+        latest_success = next(
+            (build for build in matching if build.get("build_succeeded") is True),
+            None,
+        )
 
         item["last_build_status"] = latest["status"] if latest else "unknown"
         item["last_build_url"] = latest["url"] if latest else None
@@ -347,7 +400,7 @@ def load_update_status(
             build
             for build in builds
             if build["profile"] == profile["id"]
-            and build["status"] == "success"
+            and build.get("build_succeeded") is True
             and build.get("commit")
         ]
         last_built = matching[0]["commit"] if matching else None
@@ -475,6 +528,10 @@ def main() -> int:
             "default_branch": repo.get("default_branch"),
             "is_template": repo.get("is_template", False),
             "version": "V1.3",
+            "baseline_profile": next(
+                (profile["id"] for profile in profiles if profile.get("baseline")),
+                None,
+            ),
         },
         "latest_build": latest_build,
         "profiles": profiles,

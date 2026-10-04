@@ -7,107 +7,1727 @@
   "$defs": {
     "health": {
       "type": "object",
-      "required": ["ok", "version", "runtime", "configured"],
+      "required": [
+        "ok",
+        "version",
+        "runtime",
+        "configured"
+      ],
       "additionalProperties": false,
       "properties": {
-        "ok": {"const": true},
-        "version": {"const": 1},
-        "runtime": {"enum": ["cloudflare-workers", "self-hosted-node"]},
-        "configured": {"type": "boolean"}
+        "ok": {
+          "const": true
+        },
+        "version": {
+          "const": 1
+        },
+        "runtime": {
+          "enum": [
+            "cloudflare-workers",
+            "self-hosted-node"
+          ]
+        },
+        "configured": {
+          "type": "boolean"
+        }
       }
     },
     "publicConfig": {
       "type": "object",
-      "required": ["configured", "githubAppInstallUrl"],
+      "required": [
+        "configured",
+        "githubAppInstallUrl"
+      ],
       "additionalProperties": false,
       "properties": {
-        "configured": {"type": "boolean"},
-        "githubAppInstallUrl": {"type": "string"}
+        "configured": {
+          "type": "boolean"
+        },
+        "githubAppInstallUrl": {
+          "type": "string"
+        }
       }
     },
     "user": {
       "type": "object",
-      "required": ["login", "avatarUrl"],
+      "required": [
+        "login",
+        "avatarUrl"
+      ],
       "additionalProperties": false,
       "properties": {
-        "login": {"type": "string", "minLength": 1},
-        "avatarUrl": {"type": "string"}
+        "login": {
+          "type": "string",
+          "minLength": 1
+        },
+        "avatarUrl": {
+          "type": "string"
+        }
       }
     },
     "session": {
       "type": "object",
-      "required": ["authenticated"],
+      "required": [
+        "authenticated"
+      ],
       "additionalProperties": false,
       "properties": {
-        "authenticated": {"type": "boolean"},
-        "user": {"$ref": "#/$defs/user"},
-        "expiresAt": {"type": "string", "format": "date-time"}
+        "authenticated": {
+          "type": "boolean"
+        },
+        "user": {
+          "$ref": "#/$defs/user"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "repository": {
       "type": "object",
-      "required": ["owner", "name", "fullName", "defaultBranch", "private", "permissions"],
+      "required": [
+        "owner",
+        "name",
+        "fullName",
+        "defaultBranch",
+        "private",
+        "permissions"
+      ],
       "additionalProperties": false,
       "properties": {
-        "owner": {"type": "string", "minLength": 1},
-        "name": {"type": "string", "minLength": 1},
-        "fullName": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
-        "defaultBranch": {"type": "string", "minLength": 1},
-        "private": {"type": "boolean"},
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fullName": {
+          "type": "string",
+          "pattern": "^[^/]+/[^/]+$"
+        },
+        "defaultBranch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "private": {
+          "type": "boolean"
+        },
         "permissions": {
           "type": "object",
-          "required": ["contents"],
+          "required": [
+            "contents",
+            "pullRequests",
+            "actions"
+          ],
           "additionalProperties": false,
           "properties": {
-            "contents": {"enum": ["none", "read", "write"]}
+            "contents": {
+              "enum": [
+                "none",
+                "read",
+                "write"
+              ]
+            },
+            "pullRequests": {
+              "enum": [
+                "none",
+                "read",
+                "write"
+              ]
+            },
+            "actions": {
+              "enum": [
+                "none",
+                "read",
+                "write"
+              ]
+            }
           }
         }
       }
     },
-    "repositoriesResponse": {
+    "profileFile": {
       "type": "object",
-      "required": ["repositories"],
+      "required": [
+        "path",
+        "sha",
+        "exists",
+        "content"
+      ],
       "additionalProperties": false,
       "properties": {
-        "repositories": {
-          "type": "array",
-          "items": {"$ref": "#/$defs/repository"}
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha": {
+          "type": "string"
+        },
+        "exists": {
+          "type": "boolean"
+        },
+        "content": {
+          "type": "string"
         }
       }
     },
     "profile": {
       "type": "object",
-      "required": ["id", "path", "sha"],
+      "required": [
+        "id",
+        "path"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha": {
+          "type": "string"
+        },
+        "files": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/profileFile"
+          }
+        },
+        "baseline": {
+          "type": "boolean"
+        }
+      }
+    },
+    "profileDetail": {
+      "type": "object",
+      "required": [
+        "owner",
+        "repo",
+        "defaultBranch",
+        "baseRefSha",
+        "baselineProfileId",
+        "profile"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "defaultBranch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseRefSha": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{40}$"
+        },
+        "profile": {
+          "$ref": "#/$defs/profile"
+        },
+        "baselineProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        }
+      }
+    },
+    "profileWriteRequest": {
+      "type": "object",
+      "required": [
+        "baseRefSha",
+        "files"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "baseRefSha": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{40}$"
+        },
+        "files": {
+          "type": "object",
+          "required": [
+            ".config",
+            "profile.env",
+            "diy-part1.sh",
+            "diy-part2.sh",
+            "required-packages.txt",
+            "watch-sources.txt",
+            "feeds.conf"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            ".config": {
+              "type": "string"
+            },
+            "profile.env": {
+              "type": "string"
+            },
+            "diy-part1.sh": {
+              "type": "string"
+            },
+            "diy-part2.sh": {
+              "type": "string"
+            },
+            "required-packages.txt": {
+              "type": "string"
+            },
+            "watch-sources.txt": {
+              "type": "string"
+            },
+            "feeds.conf": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "profileWriteResponse": {
+      "type": "object",
+      "required": [
+        "branch",
+        "commitSha",
+        "changedFiles",
+        "action",
+        "pullRequest",
+        "cleanup"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commitSha": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{40}$"
+        },
+        "changedFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pullRequest": {
+          "type": "object",
+          "required": [
+            "number",
+            "url",
+            "merged",
+            "mergeCommitSha",
+            "mergeReason"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "number": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "url": {
+              "type": "string"
+            },
+            "merged": {
+              "type": "boolean"
+            },
+            "mergeCommitSha": {
+              "type": "string"
+            },
+            "mergeReason": {
+              "type": "string"
+            }
+          }
+        },
+        "cleanup": {
+          "type": "object",
+          "required": [
+            "branchDeleted",
+            "supersededPullRequests"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "branchDeleted": {
+              "type": "boolean"
+            },
+            "supersededPullRequests": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "number",
+                  "branch",
+                  "branchDeleted"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "number": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "branch": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "branchDeleted": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "action": {
+          "enum": [
+            "update",
+            "delete",
+            "baseline",
+            "copy",
+            "rename",
+            "restore"
+          ]
+        },
+        "sourceProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "targetProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "baselineProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "configStudioCleanup": {
+          "$ref": "#/$defs/configStudioCleanup"
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "required": [
+        "error"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validationErrors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "buildRun": {
+      "type": "object",
+      "required": [
+        "id",
+        "runNumber",
+        "displayTitle",
+        "status",
+        "conclusion",
+        "event",
+        "headBranch",
+        "headSha",
+        "createdAt",
+        "updatedAt",
+        "url"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "runNumber": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "displayTitle": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "conclusion": {
+          "type": "string"
+        },
+        "event": {
+          "type": "string"
+        },
+        "headBranch": {
+          "type": "string"
+        },
+        "headSha": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "buildTriggerRequest": {
+      "type": "object",
+      "required": [
+        "publishRelease"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "publishRelease": {
+          "type": "boolean"
+        }
+      }
+    },
+    "buildTriggerResponse": {
+      "type": "object",
+      "required": [
+        "accepted",
+        "requestId",
+        "profileId",
+        "publishRelease",
+        "ref",
+        "runId",
+        "runUrl"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "const": true
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{16}$"
+        },
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "publishRelease": {
+          "type": "boolean"
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "buildArtifact": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "sizeBytes",
+        "expired",
+        "createdAt",
+        "expiresAt",
+        "url"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expired": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "expiresAt": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "buildJob": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "status",
+        "conclusion",
+        "startedAt",
+        "completedAt",
+        "url",
+        "steps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "conclusion": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string"
+        },
+        "completedAt": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "status",
+              "conclusion"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "conclusion": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "buildRelease": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tag": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "publishedAt": {
+          "type": "string"
+        },
+        "recovered": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "tag",
+        "name",
+        "url",
+        "publishedAt",
+        "recovered"
+      ]
+    },
+    "buildDetail": {
+      "type": "object",
+      "required": [
+        "id",
+        "runNumber",
+        "runAttempt",
+        "displayTitle",
+        "status",
+        "conclusion",
+        "event",
+        "headBranch",
+        "headSha",
+        "createdAt",
+        "updatedAt",
+        "runStartedAt",
+        "url",
+        "summaryUrl",
+        "progress",
+        "jobs",
+        "artifacts",
+        "release",
+        "releaseRecoveryEligible",
+        "releaseRecoveryReason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "runNumber": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runAttempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "displayTitle": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "conclusion": {
+          "type": "string"
+        },
+        "event": {
+          "type": "string"
+        },
+        "headBranch": {
+          "type": "string"
+        },
+        "headSha": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "runStartedAt": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "summaryUrl": {
+          "type": "string"
+        },
+        "jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/buildJob"
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/buildArtifact"
+          }
+        },
+        "release": {
+          "$ref": "#/$defs/buildRelease"
+        },
+        "progress": {
+          "$ref": "#/$defs/actionProgress"
+        },
+        "releaseRecoveryEligible": {
+          "type": "boolean"
+        },
+        "releaseRecoveryReason": {
+          "type": "string"
+        }
+      }
+    },
+    "profileTemplateInput": {
+      "type": "object",
+      "required": [
+        "profileId",
+        "profileName",
+        "sourceRepo",
+        "sourceBranch",
+        "adapter",
+        "configText",
+        "autoUpdate",
+        "uploadRelease",
+        "uploadFirmware",
+        "maximizeSpace",
+        "streamLog",
+        "requiredPackages",
+        "watchSources",
+        "extraFeeds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "profileName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "sourceRepo": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "sourceBranch": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "adapter": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+$"
+        },
+        "configText": {
+          "type": "string",
+          "minLength": 1
+        },
+        "autoUpdate": {
+          "type": "boolean"
+        },
+        "uploadRelease": {
+          "type": "boolean"
+        },
+        "uploadFirmware": {
+          "type": "boolean"
+        },
+        "maximizeSpace": {
+          "type": "boolean"
+        },
+        "streamLog": {
+          "type": "boolean"
+        },
+        "requiredPackages": {
+          "type": "string"
+        },
+        "watchSources": {
+          "type": "string"
+        },
+        "extraFeeds": {
+          "type": "string",
+          "maxLength": 262144
+        }
+      }
+    },
+    "profileTemplatePreviewFile": {
+      "type": "object",
+      "required": [
+        "path",
+        "content",
+        "mode"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^profiles/[A-Za-z0-9][A-Za-z0-9._-]{0,63}/[^/]+$"
+        },
+        "content": {
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "100644",
+            "100755"
+          ]
+        }
+      }
+    },
+    "profileTemplatePreviewResponse": {
+      "type": "object",
+      "required": [
+        "profileId",
+        "files"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "files": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "$ref": "#/$defs/profileTemplatePreviewFile"
+          }
+        }
+      }
+    },
+    "profileCreateResponse": {
+      "type": "object",
+      "required": [
+        "profileId",
+        "branch",
+        "commitSha",
+        "changedFiles",
+        "action",
+        "pullRequest",
+        "cleanup"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commitSha": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{40}$"
+        },
+        "changedFiles": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "type": "string"
+          }
+        },
+        "action": {
+          "const": "create"
+        },
+        "pullRequest": {
+          "type": "object",
+          "required": [
+            "number",
+            "url",
+            "merged",
+            "mergeCommitSha",
+            "mergeReason"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "number": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "url": {
+              "type": "string"
+            },
+            "merged": {
+              "type": "boolean"
+            },
+            "mergeCommitSha": {
+              "type": "string"
+            },
+            "mergeReason": {
+              "type": "string"
+            }
+          }
+        },
+        "cleanup": {
+          "type": "object",
+          "required": [
+            "branchDeleted",
+            "supersededPullRequests"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "branchDeleted": {
+              "type": "boolean"
+            },
+            "supersededPullRequests": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "number",
+                  "branch",
+                  "branchDeleted"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "number": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "branch": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "branchDeleted": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "configStudioStartRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "sourceRepo": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "sourceBranch": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "adapter": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+$"
+        },
+        "baseConfig": {
+          "type": "string"
+        },
+        "extraFeeds": {
+          "type": "string",
+          "maxLength": 262144
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "profileId"
+          ]
+        },
+        {
+          "required": [
+            "sourceRepo",
+            "sourceBranch",
+            "adapter"
+          ]
+        }
+      ]
+    },
+    "configStudioDispatchResponse": {
+      "type": "object",
+      "required": [
+        "accepted",
+        "requestId",
+        "branch",
+        "runId",
+        "runUrl"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "accepted": {
+          "const": true
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        },
+        "branch": {
+          "type": "string",
+          "pattern": "^openwrt-ng/config-session-[0-9a-f]{16}$"
+        },
+        "profileId": {
+          "type": "string"
+        },
+        "sourceRepo": {
+          "type": "string"
+        },
+        "sourceBranch": {
+          "type": "string"
+        },
+        "adapter": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "runId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "configStudioSelectionRequest": {
+      "type": "object",
+      "required": [
+        "values"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "values": {
+          "type": "object",
+          "maxProperties": 20000,
+          "propertyNames": {
+            "pattern": "^CONFIG_[A-Za-z0-9_.+@/-]+$"
+          },
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        }
+      }
+    },
+    "configStudioSession": {
+      "type": "object",
+      "required": [
+        "requestId",
+        "branch",
+        "profileId",
+        "sourceRepo",
+        "sourceBranch",
+        "adapter",
+        "status",
+        "run",
+        "progress",
+        "catalog",
+        "result"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        },
+        "branch": {
+          "type": "string"
+        },
+        "profileId": {
+          "type": "string"
+        },
+        "sourceRepo": {
+          "type": "string"
+        },
+        "sourceBranch": {
+          "type": "string"
+        },
+        "adapter": {
+          "type": "string"
+        },
+        "status": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "run": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "catalog": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "result": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "progress": {
+          "$ref": "#/$defs/actionProgress"
+        }
+      }
+    },
+    "configStudioDeleteResponse": {
+      "type": "object",
+      "required": [
+        "deleted",
+        "requestId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "deleted": {
+          "const": true
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        }
+      }
+    },
+    "configStudioStartResponse": {
+      "type": "object",
+      "required": [
+        "accepted",
+        "requestId",
+        "branch",
+        "profileId",
+        "sourceRepo",
+        "sourceBranch",
+        "adapter",
+        "ref",
+        "runId",
+        "runUrl"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "const": true
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        },
+        "branch": {
+          "type": "string",
+          "pattern": "^openwrt-ng/config-session-[0-9a-f]{16}$"
+        },
+        "profileId": {
+          "type": "string"
+        },
+        "sourceRepo": {
+          "type": "string"
+        },
+        "sourceBranch": {
+          "type": "string"
+        },
+        "adapter": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "runId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "configStudioStatus": {
+      "type": "object",
+      "required": [
+        "status",
+        "mode",
+        "requestId"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "status": {
+          "enum": [
+            "preparing",
+            "ready",
+            "resolving",
+            "resolved",
+            "failed"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "catalog",
+            "resolve"
+          ]
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        },
+        "sourceCommit": {
+          "type": "string"
+        }
+      }
+    },
+    "configStudioSessionResponse": {
+      "type": "object",
+      "required": [
+        "requestId",
+        "branch",
+        "profileId",
+        "sourceRepo",
+        "sourceBranch",
+        "adapter",
+        "status",
+        "run",
+        "catalog",
+        "result"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        },
+        "branch": {
+          "type": "string",
+          "pattern": "^openwrt-ng/config-session-[0-9a-f]{16}$"
+        },
+        "profileId": {
+          "type": "string"
+        },
+        "sourceRepo": {
+          "type": "string"
+        },
+        "sourceBranch": {
+          "type": "string"
+        },
+        "adapter": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/configStudioStatus"
+        },
+        "run": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": [
+                "id",
+                "status",
+                "conclusion",
+                "url",
+                "updatedAt"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "status": {
+                  "type": "string"
+                },
+                "conclusion": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        },
+        "catalog": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "result": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        }
+      }
+    },
+    "actionProgressStep": {
+      "type": "object",
+      "required": [
+        "name",
+        "detail",
+        "status",
+        "conclusion"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "conclusion": {
+          "type": "string"
+        }
+      }
+    },
+    "actionProgress": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "completed",
+        "total",
+        "percent",
+        "current",
+        "currentDetail",
+        "failed",
+        "steps"
+      ],
+      "properties": {
+        "completed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "percent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "current": {
+          "type": "string"
+        },
+        "currentDetail": {
+          "type": "string"
+        },
+        "failed": {
+          "type": "string"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/actionProgressStep"
+          }
+        }
+      }
+    },
+    "profileDeleteRequest": {
+      "type": "object",
+      "required": [
+        "baseRefSha"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "baseRefSha": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{40}$"
+        }
+      }
+    },
+    "profileBaselineRequest": {
+      "type": "object",
+      "required": [
+        "baseRefSha"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "baseRefSha": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{40}$"
+        }
+      }
+    },
+    "configStudioCleanup": {
+      "type": "object",
+      "required": [
+        "sessionsFound",
+        "branchesDeleted",
+        "canceledRuns",
+        "cancelFailedRuns",
+        "branchDeleteFailures",
+        "runLookupFailed"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sessionsFound": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "branchesDeleted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "canceledRuns": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "cancelFailedRuns": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "branchDeleteFailures": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{16}$"
+          }
+        },
+        "runLookupFailed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "profileLifecycleRequest": {
+      "type": "object",
+      "required": [
+        "baseRefSha",
+        "targetProfileId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "baseRefSha": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{40}$"
+        },
+        "targetProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        }
+      }
+    },
+    "buildControlResponse": {
+      "type": "object",
+      "required": [
+        "accepted",
+        "action",
+        "runId",
+        "runNumber",
+        "url"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "accepted": {
+          "const": true
+        },
+        "action": {
+          "enum": [
+            "cancel",
+            "rerun"
+          ]
+        },
+        "runId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "runNumber": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "nextAttempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "deletedProfile": {
+      "type": "object",
+      "required": [
+        "id",
+        "deletionCommitSha",
+        "deletedAt",
+        "commitUrl",
+        "message"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
         },
-        "path": {"type": "string", "minLength": 1},
-        "sha": {"type": "string"}
-      }
-    },
-    "profilesResponse": {
-      "type": "object",
-      "required": ["owner", "repo", "profiles"],
-      "additionalProperties": false,
-      "properties": {
-        "owner": {"type": "string", "minLength": 1},
-        "repo": {"type": "string", "minLength": 1},
-        "profiles": {
-          "type": "array",
-          "items": {"$ref": "#/$defs/profile"}
+        "deletionCommitSha": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{40}$"
+        },
+        "deletedAt": {
+          "type": "string"
+        },
+        "commitUrl": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
         }
       }
     },
-    "error": {
+    "profileRestoreRequest": {
       "type": "object",
-      "required": ["error"],
+      "required": [
+        "deletionCommitSha"
+      ],
       "additionalProperties": false,
       "properties": {
-        "error": {"type": "string", "minLength": 1},
-        "reason": {"type": "string", "minLength": 1}
+        "deletionCommitSha": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{40}$"
+        }
+      }
+    },
+    "updateCheckerRequest": {
+      "type": "object",
+      "required": [
+        "force"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "force": {
+          "type": "boolean"
+        }
+      }
+    },
+    "workflowDispatchResponse": {
+      "type": "object",
+      "required": [
+        "accepted",
+        "ref",
+        "runId",
+        "runUrl"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "accepted": {
+          "const": true
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runUrl": {
+          "type": "string"
+        },
+        "sourceRunId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "profileId": {
+          "type": "string"
+        },
+        "force": {
+          "type": "boolean"
+        }
+      }
+    },
+    "managedWorkflowRun": {
+      "type": "object",
+      "required": [
+        "id",
+        "runNumber",
+        "runAttempt",
+        "displayTitle",
+        "status",
+        "conclusion",
+        "event",
+        "headBranch",
+        "headSha",
+        "createdAt",
+        "updatedAt",
+        "runStartedAt",
+        "url",
+        "progress",
+        "jobs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "runNumber": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runAttempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "displayTitle": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "conclusion": {
+          "type": "string"
+        },
+        "event": {
+          "type": "string"
+        },
+        "headBranch": {
+          "type": "string"
+        },
+        "headSha": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "runStartedAt": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "progress": {
+          "$ref": "#/$defs/actionProgress"
+        },
+        "jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/buildJob"
+          }
+        }
       }
     }
   }
