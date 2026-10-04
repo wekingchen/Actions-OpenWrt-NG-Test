@@ -1,0 +1,30 @@
+name: Temporary Sync Gate Variable Setup
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/temp-sync-gate-variable.yml"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: 设置测试仓同步门禁上游
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh variable set OPENWRT_NG_SYNC_GATE_UPSTREAM \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "wekingchen/Actions-OpenWrt-NG"
+          gh variable set OPENWRT_NG_SYNC_GATE_REF \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "main"
+          gh variable list --repo "$GITHUB_REPOSITORY"
