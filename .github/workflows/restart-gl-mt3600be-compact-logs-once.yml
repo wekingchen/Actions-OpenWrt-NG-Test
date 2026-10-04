@@ -1,0 +1,72 @@
+name: Restart gl-mt3600be with compact logs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/restart-gl-mt3600be-compact-logs-once.yml"
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  restart-cleanup:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: 取消旧日志机制回归 #11
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh api -X POST             "repos/${GITHUB_REPOSITORY}/actions/runs/37191530608/cancel"             --silent || true
+
+      - name: 等待旧 Run 释放并发组
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          for i in $(seq 1 30); do
+            status="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/37191530608" --jq .status)"
+            [ "$status" = "completed" ] && exit 0
+            sleep 2
+          done
+          echo "旧 Run 尚未释放；继续提交新回归，它会在同一 concurrency 组排队。"
+
+      - name: 触发静默日志 gl-mt3600be 回归
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh api             -X POST             "repos/${GITHUB_REPOSITORY}/actions/workflows/build-openwrt.yml/dispatches"             --input - <<'JSON'
+          {
+            "ref": "main",
+            "inputs": {
+              "profile": "gl-mt3600be",
+              "publish_release": "false",
+              "control_plane_request_id": "compact-log-regression"
+            }
+          }
+          JSON
+
+      - name: 删除已合并 Test 修复分支
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh api -X DELETE             "repos/${GITHUB_REPOSITORY}/git/refs/heads/fix/compact-build-logs-entry"             --silent || true
+
+      - name: 检出 main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: 删除一次性 Workflow
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm ".github/workflows/restart-gl-mt3600be-compact-logs-once.yml"
+          git commit -m "chore: remove compact-log regression helper"
+          git push origin HEAD:main
