@@ -31,9 +31,10 @@ function readInput() {
     uploadRelease: $("upload-release").checked,
     uploadFirmware: $("upload-firmware").checked,
     maximizeSpace: $("maximize-space").checked,
-    streamLog: $("stream-log").checked,
+    streamLog: false,
     requiredPackages: $("required-packages").value,
-    watchSources: $("watch-sources").value
+    watchSources: $("watch-sources").value,
+    extraFeeds: $("extra-feeds").value
   };
 }
 
@@ -76,7 +77,8 @@ function renderPreview() {
     "├── diy-part1.sh",
     "├── diy-part2.sh",
     "├── required-packages.txt",
-    "└── watch-sources.txt"
+    "├── watch-sources.txt",
+    "└── feeds.conf"
   ].join("<br>");
 
   const tabs = $("preview-tabs");

@@ -158,13 +158,6 @@
               <input id="maximize-space" type="checkbox">
             </label>
 
-            <label class="toggle-row">
-              <span>
-                <strong>流式编译日志</strong>
-                <small>实时输出 make 日志；大体量旧 SDK 可关闭。</small>
-              </span>
-              <input id="stream-log" type="checkbox" checked>
-            </label>
           </div>
         </section>
 
@@ -176,6 +169,13 @@
               <h2>可选验收与额外上游</h2>
             </div>
           </div>
+
+          <label class="field">
+            <span>额外 feeds</span>
+            <textarea id="extra-feeds" class="compact-textarea" spellcheck="false"
+                      placeholder="src-git my_feed https://github.com/example/openwrt-packages.git;main"></textarea>
+            <small>会在 ./scripts/feeds update -a 前插入。</small>
+          </label>
 
           <label class="field">
             <span>必须出现在最终 Manifest 的软件包</span>
@@ -221,7 +221,8 @@
             ├── diy-part1.sh<br>
             ├── diy-part2.sh<br>
             ├── required-packages.txt<br>
-            └── watch-sources.txt
+            ├── watch-sources.txt<br>
+            └── feeds.conf
           </div>
 
           <div class="preview-tabs" id="preview-tabs"></div>

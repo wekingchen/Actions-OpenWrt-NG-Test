@@ -194,6 +194,64 @@ def parse_targetinfo(path: Path, config: dict[str, str]) -> list[dict[str, Any]]
     return output
 
 
+def dependency_rules_for_package(
+    package_name: str,
+    tokens: list[str],
+) -> list[dict[str, str]]:
+    """Extract package-select edges used by OpenWrt's generated menuconfig.
+
+    Only '+' dependencies select another package. '+@FOO' selects a raw Kconfig
+    symbol instead of a package and is therefore not shown as a package lock.
+    Conditional package deps such as '+PACKAGE_x:foo' keep their Kconfig
+    condition for the browser-side preview. The final source of truth remains
+    OpenWrt's own make defconfig.
+    """
+    rules: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for raw_token in tokens:
+        token = str(raw_token or "").strip()
+        flags_match = re.match(r"^([@+]+)", token)
+        flags = flags_match.group(1) if flags_match else ""
+        if "+" not in flags or "@" in flags:
+            continue
+
+        value = token[len(flags):]
+        condition = ""
+        target = value
+        if ":" in value:
+            condition, target = value.split(":", 1)
+            condition = condition.strip()
+            target = target.strip()
+            if condition == f"PACKAGE_{package_name}":
+                condition = ""
+
+        if not target or target.startswith("@"):
+            continue
+
+        key = (target, condition)
+        if key in seen:
+            continue
+        seen.add(key)
+        rules.append({
+            "package": target,
+            "condition": condition,
+            "source": token,
+        })
+    return rules
+
+
+def dependency_condition_names(rules: list[dict[str, str]]) -> set[str]:
+    names: set[str] = set()
+    for rule in rules:
+        condition = str(rule.get("condition") or "")
+        names.update(
+            name
+            for name in re.findall(r"[A-Za-z_][A-Za-z0-9_.+@/-]*", condition)
+            if name not in {"y", "m", "n"}
+        )
+    return names
+
+
 def parse_packageinfo(path: Path, config: dict[str, str]) -> list[dict[str, Any]]:
     packages: list[dict[str, Any]] = []
     source_makefile = ""
@@ -255,8 +313,88 @@ def parse_packageinfo(path: Path, config: dict[str, str]) -> list[dict[str, Any]
         package["assignable"] = (
             ["n", "m", "y"] if "ipkg" in package["types"] else ["n", "y"]
         )
+        package["dependencyRules"] = dependency_rules_for_package(
+            package["name"],
+            package["depends"],
+        )
         visible.append(package)
     return visible
+
+
+
+def attach_package_config_options(
+    packages: list[dict[str, Any]],
+    package_kconfig: dict[str, dict[str, Any]],
+) -> None:
+    """Attach Package/<name>/config symbols to their owning package."""
+    by_name = {str(package["name"]): package for package in packages}
+    owners = sorted(by_name, key=lambda value: (-len(value), value.casefold()))
+    for package in packages:
+        package["configOptions"] = []
+
+    for config_name, state in package_kconfig.items():
+        if config_name in by_name:
+            continue
+        owner = next(
+            (
+                name
+                for name in owners
+                if config_name.startswith(name + "_")
+            ),
+            "",
+        )
+        if not owner:
+            continue
+
+        option = dict(state)
+        option["configName"] = config_name
+        option["name"] = config_name[len(owner) + 1 :]
+        option["choicePrompt"] = str(option.get("choicePrompt") or "")
+        option["choiceValue"] = bool(option.get("choiceValue"))
+
+        package_path = [
+            str(part)
+            for part in (by_name[owner].get("menuPath") or [])
+            if str(part).strip()
+        ]
+        option_trail = list(option.get("menuTrail") or [])
+        prefix = 0
+        while (
+            prefix < len(package_path)
+            and prefix < len(option_trail)
+            and str(option_trail[prefix].get("prompt") or "")
+            == package_path[prefix]
+        ):
+            prefix += 1
+        option["relativeMenuTrail"] = option_trail[prefix:]
+        option["relativeMenuPath"] = [
+            str(node.get("prompt") or "")
+            for node in option["relativeMenuTrail"]
+            if str(node.get("prompt") or "").strip()
+        ]
+        potential = [
+            str(value)
+            for value in (option.get("potentialAssignable") or [])
+            if str(value) in {"n", "m", "y"}
+        ]
+        if not potential:
+            option_type = str(option.get("type") or "")
+            if option_type == "boolean":
+                potential = ["n", "y"]
+            elif option_type == "tristate":
+                potential = ["n", "m", "y"]
+        option["potentialAssignable"] = potential
+        by_name[owner]["configOptions"].append(option)
+
+    for package in packages:
+        package["configOptions"].sort(
+            key=lambda item: (
+                tuple(item.get("menuPath") or []),
+                str(item.get("choicePrompt") or "").casefold(),
+                str(item.get("prompt") or "").casefold(),
+                str(item.get("name") or "").casefold(),
+            )
+        )
 
 
 def kconfig_features(root: Path) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]], str]:
@@ -357,23 +495,32 @@ def kconfig_features(root: Path) -> tuple[list[dict[str, Any]], dict[str, dict[s
                 for part in (item.get("menuPath") or [])
                 if str(part).strip()
             ][-8:]
+            item["menuTrail"] = [
+                {
+                    "prompt": str(node.get("prompt") or "").strip(),
+                    "kind": str(node.get("kind") or "menu").strip() or "menu",
+                }
+                for node in (item.get("menuTrail") or [])
+                if isinstance(node, dict)
+                and str(node.get("prompt") or "").strip()
+            ][-8:]
             item["assignable"] = [
                 str(value)
                 for value in (item.get("assignable") or [])
                 if str(value) in {"n", "m", "y"}
             ]
+            item["potentialAssignable"] = [
+                str(value)
+                for value in (item.get("potentialAssignable") or [])
+                if str(value) in {"n", "m", "y"}
+            ]
             item["visible"] = bool(item.get("visible"))
             item["changeable"] = bool(item.get("changeable"))
+            item["choiceValue"] = bool(item.get("choiceValue"))
+            item["choicePrompt"] = str(item.get("choicePrompt") or "")
 
             if name.startswith("PACKAGE_"):
-                package_states[name.removeprefix("PACKAGE_")] = {
-                    "symbol": symbol,
-                    "value": str(item.get("value") or "n"),
-                    "visible": item["visible"],
-                    "changeable": item["changeable"],
-                    "assignable": item["assignable"],
-                    "menuPath": item["menuPath"],
-                }
+                package_states[name.removeprefix("PACKAGE_")] = item
                 continue
 
             features.append(item)
@@ -415,6 +562,7 @@ def command_catalog(args: argparse.Namespace) -> None:
             package["changeable"] = state["changeable"]
             package["assignable"] = state["assignable"]
             package["menuPath"] = state["menuPath"]
+            package["menuTrail"] = state.get("menuTrail") or []
         elif feature_error:
             # Degraded metadata-only fallback. A real Config Studio run should
             # normally have the native OpenWrt exporter available, but keeping
@@ -423,11 +571,23 @@ def command_catalog(args: argparse.Namespace) -> None:
             package["visible"] = True
             package["changeable"] = True
             package["menuPath"] = []
+            package["menuTrail"] = []
         else:
             package["visible"] = False
             package["changeable"] = False
             package["assignable"] = []
             package["menuPath"] = []
+            package["menuTrail"] = []
+
+    attach_package_config_options(packages, package_states)
+
+    dependency_condition_values: dict[str, str] = {}
+    for package in packages:
+        for name in dependency_condition_names(package["dependencyRules"]):
+            symbol = f"CONFIG_{name}"
+            dependency_condition_values[name] = config_value_for_json(
+                config.get(symbol, "n")
+            )
 
     categories = sorted(
         {
@@ -438,15 +598,34 @@ def command_catalog(args: argparse.Namespace) -> None:
         key=str.casefold,
     )
     payload = {
-        "version": 1,
+        "version": 4,
         "targets": parse_targetinfo(targetinfo, config),
         "packages": packages,
         "packageCategories": categories,
         "features": features,
+        "dependencyConditionValues": dependency_condition_values,
         "featureCatalogError": feature_error,
         "configStats": {
             "symbols": len(config),
             "packages": len(packages),
+            "packageOptions": sum(
+                len(package.get("configOptions") or [])
+                for package in packages
+            ),
+            "packageSubmenus": sum(
+                len(
+                    {
+                        tuple(option.get("relativeMenuPath") or [])
+                        for option in (package.get("configOptions") or [])
+                        if option.get("relativeMenuPath")
+                    }
+                )
+                for package in packages
+            ),
+            "dependencyRules": sum(
+                len(package.get("dependencyRules") or [])
+                for package in packages
+            ),
             "features": len(features),
         },
     }

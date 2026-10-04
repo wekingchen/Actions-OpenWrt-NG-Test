@@ -3,49 +3,798 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a9f6e">
   <title>OpenWrt NG Control Plane</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <main class="shell">
-    <header>
-      <div>
-        <p class="eyebrow">OpenWrt NG · V2.0A</p>
-        <h1>Control Plane</h1>
-        <p class="muted">GitHub 登录、仓库授权与 Profile 只读管理。</p>
-      </div>
-      <div id="user-box"></div>
-    </header>
-
-    <section class="card" id="login-card">
-      <h2>连接 GitHub</h2>
-      <p class="muted">授权信息只由 Control Plane 保存；浏览器不会获得 GitHub access token。</p>
-      <p class="muted" id="setup-status">正在检查 GitHub App 配置…</p>
-      <a class="button" id="login-action" href="/api/v1/auth/start?return_to=/" hidden>使用 GitHub 登录</a>
-    </section>
-
-    <section class="card" id="repo-card" hidden>
-      <div class="heading">
-        <div>
-          <p class="eyebrow">Repositories</p>
-          <h2>已授权仓库</h2>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
         </div>
-        <div class="header-actions">
-          <a class="button secondary" id="install-app" href="#" hidden>安装/调整 GitHub App</a>
-          <button class="button secondary" id="logout" type="button">退出登录</button>
+        <div class="brand-copy">
+          <strong>OpenWrt NG</strong>
+          <small>Control Plane</small>
         </div>
       </div>
-      <div id="repositories" class="repo-list"></div>
-    </section>
 
-    <section class="card" id="profile-card" hidden>
-      <p class="eyebrow">Profiles</p>
-      <h2 id="profile-title">Profiles</h2>
-      <div id="profiles" class="profile-list"></div>
-    </section>
+      <nav class="sidebar-nav" aria-label="主导航">
+        <button class="nav-item active" type="button" data-nav="workspace" aria-controls="profile-card" aria-current="page">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h6l1.5 2H20v11H4z"/><path d="M4 9h16"/></svg>
+          <span>工作区</span>
+        </button>
+        <button class="nav-item" type="button" data-nav="profiles" aria-controls="profile-card">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10l3 3v13H4V7z"/><path d="M8 11h8M8 15h8"/></svg>
+          <span>配置</span>
+        </button>
+        <button class="nav-item" type="button" data-nav="builder" aria-controls="build-card">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z"/></svg>
+          <span>构建</span>
+        </button>
+      </nav>
 
-    <p class="error" id="error" hidden></p>
-  </main>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-footer">
+        <small>Control Plane 0.21.6</small>
+      </div>
+    </aside>
+
+    <div class="app-main">
+      <header class="topbar">
+        <div class="topbar-leading">
+          <div class="mobile-brand" aria-hidden="true">
+            <div class="brand-mark compact"><span></span><span></span><span></span><span></span></div>
+          </div>
+          <div class="repo-context-block">
+            <label class="repo-switcher-wrap" id="repo-switcher-wrap" hidden>
+              <span class="sr-only">切换仓库</span>
+              <select id="repo-switcher" class="repo-switcher" aria-label="切换仓库"></select>
+            </label>
+            <div class="repo-meta-line" id="repo-meta-line" hidden>
+              <span class="repo-meta-chip" id="repo-visibility"></span>
+              <span class="repo-meta-chip" id="repo-branch"></span>
+              <span class="repo-meta-chip" id="repo-capability"></span>
+              <span class="repo-meta-security">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.9 8.2 7 10 4.1-1.8 7-5.4 7-10V6z"/><path d="m9.5 12 1.7 1.7 3.6-4"/></svg>
+                Profile 变更经 Pull Request 自动合并并保留审计记录
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <span class="mobile-version-badge" aria-label="Control Plane 版本">0.21.6</span>
+          <div class="connection-badge" title="Control Plane 服务可用">
+            <span class="status-dot"></span>
+            <span>服务正常</span>
+          </div>
+          <div class="account-menu" id="account-menu">
+            <button class="user-box" id="user-box" type="button" aria-haspopup="menu" aria-expanded="false" hidden></button>
+            <div class="account-dropdown" id="account-dropdown" role="menu" hidden>
+              <div class="account-dropdown-head">
+                <strong id="account-login">GitHub</strong>
+                <small>账户与授权</small>
+              </div>
+              <a class="account-action" id="install-app" href="#" role="menuitem" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18"/></svg>
+                调整 GitHub App
+              </a>
+              <button class="account-action danger-action" id="logout" type="button" role="menuitem">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"/></svg>
+                退出登录
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <p class="error" id="error" role="alert" aria-live="assertive" hidden></p>
+
+        <section class="login-panel" id="login-card">
+          <div class="login-visual">
+            <div class="login-logo">
+              <div class="brand-mark large" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
+            </div>
+          </div>
+          <div class="login-content">
+            <p class="eyebrow">安全连接</p>
+            <h2>连接你的 GitHub</h2>
+            <p class="muted">授权信息仅保存在 Control Plane 服务端；浏览器不会获得 GitHub access token。</p>
+            <p class="setup-status" id="setup-status">正在检查 GitHub App 配置…</p>
+            <a class="button primary large-button" id="login-action" href="/api/v1/auth/start?return_to=/" hidden>
+              使用 GitHub 登录
+            </a>
+          </div>
+        </section>
+
+        <section class="workspace-empty" id="workspace-empty" hidden>
+          <div class="empty-state">
+            <strong id="workspace-empty-title">选择一个仓库</strong>
+            <span id="workspace-empty-text">从顶栏仓库切换器进入工作区。</span>
+          </div>
+        </section>
+
+        <section class="content-grid" id="workspace-grid">
+          <div class="content-primary">
+            <section class="panel profile-panel" id="profile-card" hidden>
+              <div class="panel-header">
+                <div>
+                  <h2 id="profile-title">配置</h2>
+                  <p class="panel-description">管理 Profile；可查看、复制、重命名、构建、切换基准或删除配置。</p>
+                </div>
+                <div class="panel-header-actions">
+                  <button class="button ghost secondary-action" id="update-checker-open" type="button">
+                    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+                    检查更新
+                  </button>
+                  <button class="button ghost secondary-action" id="new-profile-open" type="button">
+                    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    新建
+                  </button>
+                </div>
+              </div>
+              <p class="success profile-list-result" id="profile-list-result" aria-live="polite" hidden></p>
+              <div id="profiles" class="profile-list"></div>
+              <section class="deleted-profiles-section" id="deleted-profiles-section" hidden>
+                <div class="deleted-profiles-head">
+                  <div>
+                    <strong>最近删除</strong>
+                    <span>仅显示通过 Control Plane 删除、且当前仍不存在的 Profile；恢复仍走独立 PR。</span>
+                  </div>
+                </div>
+                <div id="deleted-profiles" class="profile-list deleted-profile-list"></div>
+              </section>
+            </section>
+
+            <section class="panel create-panel" id="new-profile-card" hidden>
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">配置</p>
+                  <h2 id="new-profile-title">新建配置</h2>
+                  <p class="panel-description">服务端生成固定 7 个标准文件，经独立 Pull Request 校验后自动合并；受仓库规则阻止时保留 PR。</p>
+                </div>
+                <button class="icon-button" id="new-profile-close" type="button" aria-label="关闭">×</button>
+              </div>
+
+              <form id="new-profile-form" class="profile-create-form" novalidate>
+                <div class="form-section">
+                  <div class="form-section-title">
+                    <span>01</span>
+                    <div><strong>基础信息</strong><small>定义 Profile 的身份与源码来源</small></div>
+                  </div>
+                  <div class="form-grid two-cols">
+                    <label class="field">
+                      <span>Profile ID</span>
+                      <input id="new-profile-id" maxlength="64" required autocomplete="off"
+                             pattern="[A-Za-z0-9][A-Za-z0-9._-]{0,63}" value="my-openwrt">
+                      <small>作为 profiles/&lt;id&gt;/ 的目录名</small>
+                    </label>
+                    <label class="field">
+                      <span>显示名称</span>
+                      <input id="new-profile-name" maxlength="200" required autocomplete="off" value="My OpenWrt">
+                      <small>用于 Dashboard 与 Actions 展示</small>
+                    </label>
+                  </div>
+
+                  <label class="field">
+                    <span>常用源码预设</span>
+                    <select id="new-source-preset">
+                      <option value="lean" selected>Lean LEDE · master</option>
+                      <option value="openwrt">OpenWrt · main</option>
+                      <option value="immortalwrt">ImmortalWrt · master</option>
+                      <option value="custom">自定义</option>
+                    </select>
+                  </label>
+
+                  <div class="form-grid two-cols">
+                    <label class="field">
+                      <span>源码仓库</span>
+                      <input id="new-source-repo" required autocomplete="off"
+                             value="https://github.com/coolsnowwolf/lede">
+                    </label>
+                    <label class="field">
+                      <span>分支 / Tag</span>
+                      <input id="new-source-branch" required autocomplete="off" value="master">
+                    </label>
+                  </div>
+
+                  <label class="field" id="new-adapter-field" hidden>
+                    <span>源码接入方式</span>
+                    <select id="new-adapter">
+                      <option value="direct-openwrt" selected>标准 OpenWrt 源码</option>
+                    </select>
+                    <small>仅在存在多种源码接入方式时显示；普通 OpenWrt / LEDE / ImmortalWrt 无需调整。</small>
+                  </label>
+                </div>
+
+                <div class="form-section">
+                  <div class="form-section-title">
+                    <span>02</span>
+                    <div><strong>软件源 / Feeds</strong><small>先添加第三方源，再生成 Menuconfig</small></div>
+                  </div>
+
+                  <div class="feed-preset-row">
+                    <div>
+                      <strong>常用源</strong>
+                      <span>点击即可加入；仍可在下方手动修改。</span>
+                    </div>
+                    <div class="feed-preset-actions">
+                      <button class="button ghost" id="new-feed-passwall" type="button">+ Passwall</button>
+                      <button class="button ghost" id="new-feed-fw876" type="button">+ HelloWorld · fw876</button>
+                      <button class="button ghost" id="new-feed-sbwml" type="button">+ HelloWorld · sbwml</button>
+                    </div>
+                  </div>
+
+                  <label class="field">
+                    <span>额外 feeds</span>
+                    <textarea id="new-extra-feeds" class="editor feeds-editor" spellcheck="false"
+                              placeholder="src-git my_feed https://github.com/example/openwrt-packages.git;main"></textarea>
+                    <small>这些源会在 <code>./scripts/feeds update -a</code> 前插入。与源码默认 feed 名称重复时自动保留这里的第三方源；额外 feeds 自己重名则保留第一条。“常用源”都会标记为第三方优先；不同 feed 提供同名 source package 时仍按版本最高者择优。修改后需要重新生成配置菜单。</small>
+                  </label>
+                </div>
+
+                <div class="form-section">
+                  <div class="form-section-title">
+                    <span>03</span>
+                    <div><strong>图形 Menuconfig</strong><small>生成一次菜单，然后选择设备、App 与编译特性</small></div>
+                  </div>
+                  <div class="config-source-choice">
+                    <div>
+                      <strong>配置菜单</strong>
+                      <span id="new-config-studio-state">尚未生成。请先确认上方源码和软件源。</span>
+                    </div>
+                    <button class="button primary" id="new-config-studio" type="button">
+                      生成配置菜单
+                    </button>
+                  </div>
+
+                  <details class="advanced-disclosure">
+                    <summary>已有 .config / 高级方式</summary>
+                    <label class="field">
+                      <span>OpenWrt .config</span>
+                      <div class="file-drop">
+                        <input id="new-config-file" type="file" accept=".config,text/plain">
+                        <div class="file-drop-copy">
+                          <strong>选择已有 .config 文件</strong>
+                          <span>也可以直接在下方粘贴或继续手动编辑</span>
+                        </div>
+                      </div>
+                      <textarea id="new-config-text" class="editor create-config-editor" spellcheck="false"
+                                placeholder="通常不需要手写；图形配置完成后会自动填入"></textarea>
+                    </label>
+                  </details>
+                </div>
+
+                <details class="advanced-disclosure profile-advanced-options">
+                  <summary>高级选项（可选）· 发布、追新、Manifest 校验</summary>
+                  <div class="profile-advanced-body">
+                    <div class="form-section compact-section">
+                      <div class="form-section-title">
+                        <div><strong>构建与发布</strong><small>一般保持默认即可</small></div>
+                      </div>
+                      <div class="toggle-grid">
+                        <label class="check-row compact-check">
+                          <input id="new-auto-update" type="checkbox">
+                          <span><strong>自动追新</strong><small>自动检测上游变化</small></span>
+                        </label>
+                        <label class="check-row compact-check">
+                          <input id="new-upload-release" type="checkbox" checked>
+                          <span><strong>发布 Release</strong><small>成功后允许发布</small></span>
+                        </label>
+                        <label class="check-row compact-check">
+                          <input id="new-upload-firmware" type="checkbox" checked>
+                          <span><strong>固件 Artifact</strong><small>保留构建产物</small></span>
+                        </label>
+                        <label class="check-row compact-check">
+                          <input id="new-maximize-space" type="checkbox">
+                          <span><strong>扩展构建空间</strong><small>大型源码时开启</small></span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="form-section compact-section">
+                      <div class="form-section-title">
+                        <div><strong>高级校验</strong><small>Manifest 与额外上游监控</small></div>
+                      </div>
+                      <div class="form-grid two-cols">
+                        <label class="field">
+                          <span>Manifest 必选软件包</span>
+                          <textarea id="new-required-packages" class="compact-input" spellcheck="false"
+                                    placeholder="luci&#10;curl"></textarea>
+                        </label>
+                        <label class="field">
+                          <span>额外 Git 上游监控</span>
+                          <textarea id="new-watch-sources" class="compact-input" spellcheck="false"
+                                    placeholder="label|git_url|branch_or_tag"></textarea>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+
+                <div class="form-actions">
+                  <button class="button ghost" id="new-profile-preview" type="button">下一步：预览 Profile</button>
+                  <button class="button primary" id="new-profile-create" type="submit" disabled>完成：保存并应用</button>
+                </div>
+              </form>
+
+              <div id="new-profile-preview-card" class="preview-box" hidden>
+                <div class="preview-header">
+                  <div>
+                    <span class="preview-kicker">Generated files</span>
+                    <h3>标准 Profile 预览</h3>
+                  </div>
+                  <select id="new-profile-preview-file" class="file-select preview-file-select"></select>
+                </div>
+                <pre id="new-profile-preview-content"></pre>
+              </div>
+              <p class="success" id="new-profile-result" aria-live="polite" hidden></p>
+            </section>
+
+            <section class="panel" id="editor-card" hidden>
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">配置</p>
+                  <h2 id="editor-title">编辑配置</h2>
+                  <p class="panel-description" id="editor-meta"></p>
+                </div>
+                <span class="permission-pill" id="write-permission"></span>
+              </div>
+
+              <div class="editor-toolbar">
+                <label class="field compact-field" for="file-select">
+                  <span>当前文件</span>
+                  <select id="file-select" class="file-select"></select>
+                </label>
+              </div>
+
+              <div class="code-shell">
+                <div class="code-shell-top">
+                  <span class="code-dot red"></span>
+                  <span class="code-dot amber"></span>
+                  <span class="code-dot green"></span>
+                  <span class="code-label">Profile configuration</span>
+                </div>
+                <textarea id="editor-content" class="editor" spellcheck="false"></textarea>
+              </div>
+
+              <div class="form-actions editor-actions">
+                <button class="button ghost" id="editor-config-studio" type="button">图形配置</button>
+                <button class="button ghost" id="preview-change" type="button">预览变更</button>
+                <button class="button primary" id="create-pr" type="button" disabled>保存并应用</button>
+              </div>
+
+              <div id="preview-card" class="preview-box" hidden>
+                <div class="preview-header">
+                  <div>
+                    <span class="preview-kicker">Diff</span>
+                    <h3>变更预览</h3>
+                  </div>
+                </div>
+                <pre id="diff-preview"></pre>
+              </div>
+              <p class="success" id="write-result" aria-live="polite" hidden></p>
+            </section>
+          </div>
+
+          <aside class="content-secondary">
+            <section class="panel recent-build-panel" id="recent-build-card" hidden>
+              <div class="panel-header compact-panel-header">
+                <div>
+                  <h2>最近构建</h2>
+                  <p class="panel-description">当前仓库最近 5 次构建。</p>
+                </div>
+                <button class="icon-button refresh-icon-button" id="refresh-recent-builds" type="button" aria-label="刷新最近构建" title="刷新">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+                </button>
+              </div>
+              <div id="recent-build-progress" class="action-progress-panel" hidden></div>
+              <div id="recent-build-runs" class="build-list compact-build-list"></div>
+            </section>
+          </aside>
+        </section>
+
+        <section class="panel build-history-panel" id="build-card" hidden>
+          <div class="panel-header compact-panel-header">
+            <div>
+              <h2 id="build-title">构建</h2>
+              <p class="panel-description">最近 100 次构建、运行详情与固件产物。</p>
+            </div>
+            <button class="icon-button refresh-icon-button" id="refresh-builds" type="button" aria-label="刷新构建历史" title="刷新">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+            </button>
+          </div>
+
+          <p class="success" id="build-result" aria-live="polite" hidden></p>
+          <div id="build-runs" class="build-list build-history-list"></div>
+
+          <div id="build-detail" class="build-detail" hidden>
+            <div class="preview-header">
+              <div>
+                <span class="preview-kicker">构建详情</span>
+                <h3 id="build-detail-title">运行详情</h3>
+              </div>
+              <a class="text-link" id="build-summary-link" href="#" target="_blank" rel="noreferrer">打开 Actions ↗</a>
+            </div>
+            <div id="build-detail-progress" class="action-progress-panel" hidden></div>
+            <div id="build-jobs" class="build-sublist"></div>
+            <div id="build-artifacts" class="build-sublist"></div>
+            <div id="build-release" class="build-sublist"></div>
+          </div>
+        </section>
+      </main>
+
+      <div class="build-dialog-backdrop" id="update-checker-dialog" hidden>
+        <section class="build-dialog workflow-action-dialog" role="dialog" aria-modal="true"
+                 aria-labelledby="update-checker-title" aria-describedby="update-checker-status">
+          <div class="build-dialog-handle" aria-hidden="true"></div>
+          <div class="panel-header build-dialog-header">
+            <div>
+              <p class="eyebrow">Update Checker</p>
+              <h2 id="update-checker-title">手动检查上游更新</h2>
+              <p class="panel-description" id="update-checker-repo"></p>
+            </div>
+            <button class="icon-button" id="update-checker-close" type="button" aria-label="关闭更新检查">×</button>
+          </div>
+
+          <label class="field">
+            <span>检查范围</span>
+            <select id="update-checker-profile"></select>
+            <small>“全部自动追新 Profile”只检查 AUTO_UPDATE=true；指定 Profile 时不受 AUTO_UPDATE 开关限制。</small>
+          </label>
+
+          <label class="check-row release-check">
+            <input id="update-checker-force" type="checkbox">
+            <span>
+              <strong>强制触发构建</strong>
+              <small>忽略已记录的上游状态；用于明确需要重新构建时。</small>
+            </span>
+          </label>
+
+          <div id="update-checker-progress" class="action-progress-panel" hidden></div>
+          <p class="build-dialog-status" id="update-checker-status" aria-live="polite"></p>
+          <a class="text-link" id="update-checker-run-link" href="#" target="_blank" rel="noreferrer" hidden>打开 Actions ↗</a>
+
+          <div class="form-actions build-dialog-actions">
+            <button class="button ghost" id="update-checker-cancel" type="button">关闭</button>
+            <button class="button primary" id="confirm-update-checker" type="button">开始检查</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="build-dialog-backdrop" id="release-existing-dialog" hidden>
+        <section class="build-dialog workflow-action-dialog" role="dialog" aria-modal="true"
+                 aria-labelledby="release-existing-title" aria-describedby="release-existing-status">
+          <div class="build-dialog-handle" aria-hidden="true"></div>
+          <div class="panel-header build-dialog-header">
+            <div>
+              <p class="eyebrow">Release Existing Build</p>
+              <h2 id="release-existing-title">发布已有构建</h2>
+              <p class="panel-description" id="release-existing-repo"></p>
+            </div>
+            <button class="icon-button" id="release-existing-close" type="button" aria-label="关闭恢复发布">×</button>
+          </div>
+
+          <div class="build-target">
+            <span>来源构建</span>
+            <strong id="release-existing-source">—</strong>
+          </div>
+          <div class="baseline-profile-note">
+            <strong>不会重新编译固件。</strong>
+            <span>直接复用该 Build 已验证并保留的 Release bundle 创建 Release；完成后仍执行 Release 保留数量清理。</span>
+          </div>
+
+          <div id="release-existing-progress" class="action-progress-panel" hidden></div>
+          <p class="build-dialog-status" id="release-existing-status" aria-live="polite"></p>
+          <a class="text-link" id="release-existing-run-link" href="#" target="_blank" rel="noreferrer" hidden>打开 Actions ↗</a>
+
+          <div class="form-actions build-dialog-actions">
+            <button class="button ghost" id="release-existing-cancel" type="button">关闭</button>
+            <button class="button primary" id="confirm-release-existing" type="button">发布现有构建</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="build-dialog-backdrop" id="config-studio-dialog" hidden>
+        <section class="config-studio-dialog" role="dialog" aria-modal="true"
+                 aria-labelledby="config-studio-title" aria-describedby="config-studio-status">
+          <div class="panel-header config-studio-header">
+            <div>
+              <p class="eyebrow">Web Menuconfig</p>
+              <h2 id="config-studio-title">图形配置</h2>
+              <p class="panel-description" id="config-studio-context"></p>
+            </div>
+            <button class="icon-button" id="config-studio-close" type="button" aria-label="暂存并关闭图形配置" title="暂存并关闭">×</button>
+          </div>
+
+          <div class="config-studio-steps" aria-label="配置步骤">
+            <div class="config-studio-step active" data-config-step="1"><span>1</span><strong>选择设备与 App</strong></div>
+            <div class="config-studio-step" data-config-step="2"><span>2</span><strong>检查依赖</strong></div>
+            <div class="config-studio-step" data-config-step="3"><span>3</span><strong>确认配置</strong></div>
+          </div>
+
+          <div class="config-studio-status-row">
+            <div>
+              <strong id="config-studio-status">正在准备真实 OpenWrt 配置环境…</strong>
+              <span id="config-studio-status-detail">Actions 会读取目标源码、安装 feeds，并运行 make defconfig。</span>
+            </div>
+            <details class="config-studio-technical">
+              <summary>后台运行详情</summary>
+              <a class="text-link" id="config-studio-run-link" href="#" target="_blank" rel="noreferrer" hidden>打开 Actions ↗</a>
+            </details>
+          </div>
+
+          <div id="config-studio-loading" class="config-studio-loading">
+            <div class="config-studio-loading-head">
+              <span class="config-studio-spinner" aria-hidden="true"></span>
+              <div>
+                <strong id="config-studio-progress-title">等待 GitHub Runner</strong>
+                <span id="config-studio-progress-detail">正在建立本次配置任务，随后会显示真实 Action 步骤。</span>
+              </div>
+            </div>
+            <div class="config-studio-progress" aria-live="polite">
+              <div class="config-studio-progress-meta">
+                <strong id="config-studio-progress-count">准备中</strong>
+                <span id="config-studio-progress-elapsed"></span>
+              </div>
+              <div id="config-studio-progress-track" class="config-studio-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <span id="config-studio-progress-bar"></span>
+              </div>
+              <div id="config-studio-progress-steps" class="config-studio-progress-steps"></div>
+            </div>
+          </div>
+
+          <div id="config-studio-workbench" class="config-studio-workbench" hidden>
+            <section class="config-studio-targets">
+              <div class="config-studio-section-title">
+                <strong>目标设备</strong>
+                <span>对应 make menuconfig 顶部的 Target / Subtarget / Target Profile</span>
+              </div>
+              <div class="form-grid three-cols">
+                <label class="field">
+                  <span>Target System</span>
+                  <select id="config-studio-target"></select>
+                </label>
+                <label class="field">
+                  <span>Subtarget</span>
+                  <select id="config-studio-subtarget"></select>
+                </label>
+                <label class="field">
+                  <span>Target Profile / Device</span>
+                  <select id="config-studio-device"></select>
+                </label>
+              </div>
+            </section>
+
+            <section class="config-studio-options">
+              <div class="config-studio-tabs" role="tablist" aria-label="配置类别">
+                <button class="config-studio-tab active" id="config-studio-tab-packages" type="button"
+                        role="tab" aria-selected="true" aria-controls="config-studio-packages-panel">软件包 / LuCI App</button>
+                <button class="config-studio-tab" id="config-studio-tab-features" type="button"
+                        role="tab" aria-selected="false" aria-controls="config-studio-features-panel">编译特性</button>
+              </div>
+
+              <div id="config-studio-packages-panel" class="config-studio-panel" role="tabpanel">
+                <div class="config-studio-filterbar config-studio-package-filters">
+                  <input id="config-studio-search" type="search" placeholder="搜索 luci-app、passwall、usb、samba…"
+                         autocomplete="off" aria-label="搜索软件包">
+                  <select id="config-studio-category" aria-label="软件包一级分类"></select>
+                  <select id="config-studio-submenu" aria-label="软件包二级菜单" disabled></select>
+                  <label class="form-switch config-studio-luci-filter">
+                    <input id="config-studio-luci-only" type="checkbox">
+                    <span>只看 LuCI App</span>
+                  </label>
+                </div>
+                <div id="config-studio-dependency-summary"
+                     class="config-studio-dependency-summary" hidden>
+                  <div class="config-studio-dependency-copy">
+                    <span class="config-studio-dependency-mark" aria-hidden="true">↳</span>
+                    <div>
+                      <strong id="config-studio-dependency-count">0 项依赖已联动锁定</strong>
+                      <small>由当前选择自动约束；最终仍以 OpenWrt Kconfig / make defconfig 为准。</small>
+                    </div>
+                  </div>
+                  <button id="config-studio-show-dependencies"
+                          class="button button-secondary button-compact"
+                          type="button" aria-pressed="false">查看联动项</button>
+                </div>
+                <div class="config-studio-list-head">
+                  <span id="config-studio-package-count">0 个可选软件包</span>
+                  <span>主包选择；必需依赖会自动锁定</span>
+                </div>
+                <div id="config-studio-packages" class="config-studio-option-list"></div>
+              </div>
+
+              <div id="config-studio-features-panel" class="config-studio-panel" role="tabpanel" hidden>
+                <div class="config-studio-filterbar config-studio-feature-filters">
+                  <input id="config-studio-feature-search" type="search"
+                         placeholder="搜索 ccache、IPv6、镜像、内核、调试等特性"
+                         autocomplete="off" aria-label="搜索编译特性">
+                  <select id="config-studio-feature-menu" aria-label="编译特性一级菜单"></select>
+                  <select id="config-studio-feature-submenu" aria-label="编译特性二级菜单" disabled></select>
+                </div>
+                <div class="config-studio-list-head">
+                  <span id="config-studio-feature-count">0 个可选特性</span>
+                  <span>仅显示 menuconfig 中有可见提示的选项</span>
+                </div>
+                <div id="config-studio-features" class="config-studio-option-list"></div>
+              </div>
+            </section>
+
+            <div class="config-studio-change-summary">
+              <span>本次手动变更</span>
+              <strong id="config-studio-change-count">0</strong>
+              <small>设备选择会连同旧目标一起提交，其他选项只提交你主动修改的项目。</small>
+            </div>
+          </div>
+
+          <div id="config-studio-result" class="config-studio-result" hidden>
+            <div class="config-studio-result-head">
+              <div>
+                <span class="preview-kicker">Kconfig Resolve</span>
+                <h3>OpenWrt 已解析你的选择</h3>
+              </div>
+              <div class="config-studio-result-metrics">
+                <span><strong id="config-result-honored">0</strong> 原样接受</span>
+                <span><strong id="config-result-adjusted">0</strong> 被依赖调整</span>
+                <span><strong id="config-result-packages">0</strong> 最终软件包</span>
+              </div>
+            </div>
+            <p class="panel-description">“被依赖调整”不是前端猜测，而是实际运行 <code>make defconfig</code> 后与手动选择逐项比较的结果。</p>
+            <div id="config-studio-adjustments" class="config-studio-adjustments"></div>
+          </div>
+
+          <p class="build-dialog-status" id="config-studio-error" role="alert" aria-live="polite" hidden></p>
+
+          <div class="form-actions config-studio-actions">
+            <button class="button ghost" id="config-studio-cancel" type="button">放弃本次配置</button>
+            <button class="button ghost" id="config-studio-back" type="button" hidden>返回修改</button>
+            <button class="button primary" id="config-studio-resolve" type="button" disabled>下一步：检查依赖</button>
+            <button class="button primary" id="config-studio-apply" type="button" hidden>确认并保存配置</button>
+            <button class="button primary" id="config-studio-use" type="button" hidden>确认并返回新 Profile</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="build-dialog-backdrop" id="build-dialog" hidden>
+        <section class="build-dialog" role="dialog" aria-modal="true" aria-labelledby="build-dialog-title" aria-describedby="build-dialog-repo">
+          <div class="build-dialog-handle" aria-hidden="true"></div>
+          <div class="panel-header build-dialog-header">
+            <div>
+              <p class="eyebrow">本次构建</p>
+              <h2 id="build-dialog-title">构建</h2>
+              <p class="panel-description" id="build-dialog-repo"></p>
+            </div>
+            <button class="icon-button" id="build-dialog-close" type="button" aria-label="关闭构建选项">×</button>
+          </div>
+
+          <div class="build-target">
+            <span>目标 Profile</span>
+            <strong id="build-dialog-profile">—</strong>
+          </div>
+
+          <label class="check-row release-check build-release-option">
+            <input id="publish-release" type="checkbox">
+            <span>
+              <strong>本次构建同时发布 Release</strong>
+              <small id="publish-release-help">正在读取 Profile 发布策略…</small>
+            </span>
+          </label>
+
+          <p class="build-dialog-status" id="build-dialog-status" aria-live="polite" hidden></p>
+
+          <div class="form-actions build-dialog-actions">
+            <button class="button ghost" id="build-dialog-cancel" type="button">取消</button>
+            <button class="button primary" id="trigger-build" type="button">开始构建</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="build-dialog-backdrop" id="profile-lifecycle-dialog" hidden>
+        <section class="build-dialog profile-lifecycle-dialog-panel" role="dialog" aria-modal="true"
+                 aria-labelledby="profile-lifecycle-title" aria-describedby="profile-lifecycle-description">
+          <div class="build-dialog-handle" aria-hidden="true"></div>
+          <div class="panel-header build-dialog-header">
+            <div>
+              <p class="eyebrow" id="profile-lifecycle-eyebrow">配置管理</p>
+              <h2 id="profile-lifecycle-title">复制 Profile</h2>
+              <p class="panel-description" id="profile-lifecycle-repo"></p>
+            </div>
+            <button class="icon-button" id="profile-lifecycle-close" type="button" aria-label="关闭配置管理">×</button>
+          </div>
+
+          <div class="build-target profile-lifecycle-source">
+            <span>当前 Profile</span>
+            <strong id="profile-lifecycle-source">—</strong>
+          </div>
+
+          <label class="field">
+            <span id="profile-lifecycle-target-label">新 Profile ID</span>
+            <input id="profile-lifecycle-target" maxlength="64" autocomplete="off"
+                   pattern="[A-Za-z0-9][A-Za-z0-9._-]{0,63}" placeholder="new-profile">
+            <small id="profile-lifecycle-description">目录名只能包含字母、数字、点、下划线和连字符。内部 profiles/&lt;id&gt;/ 路径会同步重写。</small>
+          </label>
+
+          <p class="build-dialog-status" id="profile-lifecycle-status" aria-live="polite" hidden></p>
+
+          <div class="form-actions build-dialog-actions">
+            <button class="button ghost" id="profile-lifecycle-cancel" type="button">取消</button>
+            <button class="button primary" id="confirm-profile-lifecycle" type="button" disabled>确认</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="build-dialog-backdrop" id="baseline-profile-dialog" hidden>
+        <section class="build-dialog baseline-profile-dialog-panel" role="dialog" aria-modal="true"
+                 aria-labelledby="baseline-profile-title" aria-describedby="baseline-profile-description">
+          <div class="build-dialog-handle" aria-hidden="true"></div>
+          <div class="panel-header build-dialog-header">
+            <div>
+              <p class="eyebrow">基准配置</p>
+              <h2 id="baseline-profile-title">设为基准 Profile</h2>
+              <p class="panel-description" id="baseline-profile-repo"></p>
+            </div>
+            <button class="icon-button" id="baseline-profile-close" type="button" aria-label="关闭基准配置确认">×</button>
+          </div>
+
+          <div class="build-target baseline-profile-target">
+            <span>新的基准 Profile</span>
+            <strong id="baseline-profile-name">—</strong>
+          </div>
+
+          <div class="baseline-profile-note" id="baseline-profile-description">
+            <strong>仓库始终只有一个基准 Profile。</strong>
+            <span>切换后，手动 Builder 未指定 Profile、以及 profile.sh 未指定 Profile 时，都会使用新的基准。原基准不会被删除，只是取消基准身份。</span>
+          </div>
+
+          <p class="build-dialog-status" id="baseline-profile-status" aria-live="polite" hidden></p>
+
+          <div class="form-actions build-dialog-actions">
+            <button class="button ghost" id="baseline-profile-cancel" type="button">取消</button>
+            <button class="button primary" id="confirm-baseline-profile" type="button" disabled>设为基准</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="build-dialog-backdrop" id="delete-profile-dialog" hidden>
+        <section class="build-dialog delete-profile-dialog-panel" role="dialog" aria-modal="true"
+                 aria-labelledby="delete-profile-title" aria-describedby="delete-profile-description">
+          <div class="build-dialog-handle" aria-hidden="true"></div>
+          <div class="panel-header build-dialog-header">
+            <div>
+              <p class="eyebrow danger-eyebrow">删除配置</p>
+              <h2 id="delete-profile-title">删除 Profile</h2>
+              <p class="panel-description" id="delete-profile-repo"></p>
+            </div>
+            <button class="icon-button" id="delete-profile-close" type="button" aria-label="关闭删除确认">×</button>
+          </div>
+
+          <div class="build-target delete-profile-target">
+            <span>目标 Profile</span>
+            <strong id="delete-profile-name">—</strong>
+          </div>
+
+          <div class="delete-profile-warning" id="delete-profile-description">
+            <strong>这会删除该 Profile 的全部 7 个标准配置文件。</strong>
+            <span>Control Plane 不会直接改默认分支，而是创建独立 Pull Request 并尝试自动合并；Git 历史和 PR 审计记录仍会保留。运行中的 Builder 会阻止删除；删除成功后，关联的 Config Studio 会话会先取消其活动 Action，再清理临时会话分支。</span>
+          </div>
+
+          <p class="build-dialog-status" id="delete-profile-status" aria-live="polite" hidden></p>
+
+          <div class="form-actions build-dialog-actions">
+            <button class="button ghost" id="delete-profile-cancel" type="button">取消</button>
+            <button class="button danger" id="confirm-delete-profile" type="button" disabled>创建删除 PR</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="/app.js"></script>
 </body>
 </html>
