@@ -1,4 +1,4 @@
-name: Temporary Sync Gate Variable Setup
+name: Temporary P0 Transition Cleanup
 
 on:
   push:
@@ -9,22 +9,26 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 jobs:
-  setup:
+  cleanup:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: 设置测试仓同步门禁上游
+      - name: 检出仓库
+        uses: actions/checkout@v7
+
+      - name: 取消旧构建并删除 helper
         env:
           GH_TOKEN: ${{ github.token }}
+          OLD_RUN_ID: "37218272739"
         run: |
           set -Eeuo pipefail
-          gh variable set OPENWRT_NG_SYNC_GATE_UPSTREAM \
-            --repo "$GITHUB_REPOSITORY" \
-            --body "wekingchen/Actions-OpenWrt-NG"
-          gh variable set OPENWRT_NG_SYNC_GATE_REF \
-            --repo "$GITHUB_REPOSITORY" \
-            --body "main"
-          gh variable list --repo "$GITHUB_REPOSITORY"
+          gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$OLD_RUN_ID/cancel" || true
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/temp-sync-gate-variable.yml
+          git commit -m "chore: remove temporary P0 transition helper"
+          git push origin HEAD:main
