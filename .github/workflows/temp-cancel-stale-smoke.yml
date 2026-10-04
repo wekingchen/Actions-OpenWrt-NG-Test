@@ -1,0 +1,38 @@
+name: Temporary Cancel Stale Smoke
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/temp-cancel-stale-smoke.yml"
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  cancel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 自删除并取消旧 smoke
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STALE_RUN_ID: "37240989789"
+        run: |
+          set -Eeuo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/temp-cancel-stale-smoke.yml
+          git commit -m "chore: remove stale smoke cancel helper"
+          git push origin HEAD:main
+
+          gh api -X POST \
+            -H "Accept: application/vnd.github+json" \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$STALE_RUN_ID/cancel"
+
+          echo "已请求取消旧 smoke run $STALE_RUN_ID"
