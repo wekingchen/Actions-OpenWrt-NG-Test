@@ -1,0 +1,58 @@
+name: Dispatch gl-mt3600be post-audit build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/dispatch-gl-mt3600be-post-audit.yml"
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  dispatch-cleanup:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: 触发 gl-mt3600be 真实回归构建
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh api \
+            -X POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/build-openwrt.yml/dispatches" \
+            --input - <<'JSON'
+          {
+            "ref": "main",
+            "inputs": {
+              "profile": "gl-mt3600be",
+              "publish_release": false,
+              "control_plane_request_id": "post-audit-cold-cache"
+            }
+          }
+          JSON
+
+      - name: 删除已合并同步分支
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh api -X DELETE \
+            "repos/${GITHUB_REPOSITORY}/git/refs/heads/sync/runtime-workflows-0216" \
+            --silent || true
+
+      - name: 检出 main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: 删除一次性 Workflow
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm ".github/workflows/dispatch-gl-mt3600be-post-audit.yml"
+          git commit -m "chore: remove post-audit build helper"
+          git push origin HEAD:main
