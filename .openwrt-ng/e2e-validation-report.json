@@ -1,0 +1,60 @@
+{
+  "startedAt": "2026-10-05T04:26:21.041Z",
+  "success": false,
+  "source": "smoke",
+  "copyId": "e2e-copy-63504132",
+  "renamedId": "e2e-renamed-63504132",
+  "steps": {
+    "profile.initial": {
+      "ok": true,
+      "ms": 1162,
+      "result": [
+        {
+          "id": "default",
+          "baseline": false
+        },
+        {
+          "id": "gl-mt3600be",
+          "baseline": false
+        },
+        {
+          "id": "smoke",
+          "baseline": true
+        }
+      ]
+    },
+    "profile.copy": {
+      "ok": false,
+      "ms": 6770,
+      "error": {
+        "code": "",
+        "status": 403,
+        "message": "GitHub request failed: HTTP 403 GitHub Actions is not permitted to create or approve pull requests."
+      }
+    }
+  },
+  "cleanup": {},
+  "fatalError": {
+    "code": "",
+    "status": 403,
+    "message": "GitHub request failed: HTTP 403 GitHub Actions is not permitted to create or approve pull requests."
+  },
+  "finalState": {
+    "baseline": "smoke",
+    "profiles": [
+      {
+        "id": "default",
+        "baseline": false
+      },
+      {
+        "id": "gl-mt3600be",
+        "baseline": false
+      },
+      {
+        "id": "smoke",
+        "baseline": true
+      }
+    ]
+  },
+  "finishedAt": "2026-10-05T04:26:32.594Z"
+}
