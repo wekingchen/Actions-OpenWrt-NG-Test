@@ -1,0 +1,41 @@
+name: Temporary Clean Config Studio E2E
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/temp-clean-config-studio-e2e.yml"]
+permissions:
+  actions: write
+  contents: write
+jobs:
+  start:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - working-directory: control-plane
+        run: npm ci --ignore-scripts
+      - name: Remove helper from main first
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/temp-clean-config-studio-e2e.yml
+          git commit -m "chore: remove clean Config Studio E2E helper before dispatch"
+          git push origin HEAD:main
+      - name: Start Config Studio from clean main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { GitHubAppClient } from "./control-plane/lib/github.mjs";
+          const c=new GitHubAppClient({clientId:"e2e",clientSecret:"e2e",redirectUri:"https://invalid.local/",profileMergePolicy:"immediate"});
+          const r=await c.startConfigStudio(process.env.GH_TOKEN,"wekingchen","Actions-OpenWrt-NG-Test",{profileId:"e2e-renamed-1005"});
+          console.log("E2E_CONFIG_STUDIO="+JSON.stringify(r));
+          NODE
