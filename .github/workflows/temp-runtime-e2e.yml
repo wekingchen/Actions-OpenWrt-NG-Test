@@ -1,0 +1,93 @@
+name: Temporary Runtime E2E
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/temp-runtime-e2e.yml"]
+permissions:
+  actions: write
+  contents: write
+jobs:
+  runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Self clean first
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/temp-runtime-e2e.yml
+          git commit -m "chore: remove runtime E2E helper before dispatch"
+          git push origin HEAD:main
+      - name: Install deps
+        working-directory: control-plane
+        run: npm ci --ignore-scripts
+      - name: Update Checker, cancel and rerun E2E
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { GitHubAppClient } from "./control-plane/lib/github.mjs";
+          const c=new GitHubAppClient({clientId:"e2e",clientSecret:"e2e",redirectUri:"https://invalid.local/",profileMergePolicy:"immediate"});
+          const token=process.env.GH_TOKEN, owner="wekingchen", repo="Actions-OpenWrt-NG-Test", profile="smoke";
+          const active=new Set(["queued","in_progress","requested","waiting","pending"]);
+          const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+          async function poll(getter,id,count=160,ms=2500){
+            let v=null;
+            for(let i=0;i<count;i++){v=await getter(id);if(v?.status==="completed")return v;await sleep(ms);}
+            return v;
+          }
+          const started=Date.now();
+          const upd=await c.triggerUpdateChecker(token,owner,repo,{profileId:profile,force:true});
+          console.log("UPDATE_DISPATCH="+JSON.stringify(upd));
+          let uid=Number(upd.runId||0);
+          for(let i=0;!uid&&i<60;i++){
+            const b=await c.api("/repos/"+owner+"/"+repo+"/actions/runs?per_page=100",token);
+            const x=(b.workflow_runs||[]).find(r=>r.path===".github/workflows/update-checker.yml" &&
+              (Date.parse(r.created_at||"")||0)>=started-5000);
+            uid=Number(x?.id||0);
+            if(!uid)await sleep(2000);
+          }
+          if(!uid)throw new Error("update run not found");
+          const ud=await poll((id)=>c.getUpdateCheckerRun(token,owner,repo,id),uid,160,2500);
+          console.log("UPDATE_FINAL="+JSON.stringify({id:uid,status:ud?.status,conclusion:ud?.conclusion}));
+          if(ud?.status!=="completed"||ud?.conclusion!=="success")throw new Error("update checker failed");
+
+          let b=null;
+          for(let i=0;i<80&&!b;i++){
+            const rs=await c.listBuilderRuns(token,owner,repo,{profileId:profile,limit:40});
+            b=rs.find(r=>(Date.parse(r.createdAt||"")||0)>=started-5000 && r.event==="repository_dispatch" && active.has(r.status));
+            if(!b)await sleep(2000);
+          }
+          if(!b?.id)throw new Error("builder run not found");
+          const bid=Number(b.id);
+          const ca=await c.cancelBuilderRun(token,owner,repo,bid);
+          console.log("BUILDER_CANCEL_ACCEPTED="+JSON.stringify(ca));
+          const cd=await poll((id)=>c.getBuilderRun(token,owner,repo,id),bid,100,2000);
+          console.log("BUILDER_CANCEL_FINAL="+JSON.stringify({id:bid,runNumber:cd?.runNumber,attempt:cd?.runAttempt,status:cd?.status,conclusion:cd?.conclusion}));
+          if(cd?.status!=="completed")throw new Error("builder cancel did not complete");
+
+          const rr=await c.rerunBuilderRun(token,owner,repo,bid);
+          console.log("BUILDER_RERUN_ACCEPTED="+JSON.stringify(rr));
+          let seen=null;
+          for(let i=0;i<100;i++){
+            const x=await c.getBuilderRun(token,owner,repo,bid);
+            if(Number(x.runAttempt||1)>=2&&active.has(x.status)){seen=x;break;}
+            await sleep(2000);
+          }
+          if(!seen)throw new Error("rerun attempt not observed");
+          console.log("BUILDER_RERUN_ACTIVE="+JSON.stringify({id:bid,runNumber:seen.runNumber,attempt:seen.runAttempt,status:seen.status}));
+          const ca2=await c.cancelBuilderRun(token,owner,repo,bid);
+          console.log("BUILDER_RERUN_CANCEL_ACCEPTED="+JSON.stringify(ca2));
+          const done=await poll((id)=>c.getBuilderRun(token,owner,repo,id),bid,100,2000);
+          console.log("RUNTIME_E2E_OK="+JSON.stringify({updateRunId:uid,builderRunId:bid,runNumber:done?.runNumber,attempt:done?.runAttempt,status:done?.status,conclusion:done?.conclusion}));
+          if(done?.status!=="completed")throw new Error("rerun cancel did not complete");
+          NODE
