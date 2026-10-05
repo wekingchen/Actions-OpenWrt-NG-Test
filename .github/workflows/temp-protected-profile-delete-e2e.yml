@@ -1,0 +1,48 @@
+name: Temporary Protected Profile Delete E2E
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/temp-protected-profile-delete-e2e.yml"]
+permissions:
+  contents: write
+jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Self clean first
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/temp-protected-profile-delete-e2e.yml
+          git commit -m "chore: remove protected profile E2E helper"
+          git push origin HEAD:main
+      - name: Install deps
+        working-directory: control-plane
+        run: npm ci --ignore-scripts
+      - name: Verify protected profile deletion guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { GitHubAppClient } from "./control-plane/lib/github.mjs";
+          const c = new GitHubAppClient({clientId:"e2e",clientSecret:"e2e",redirectUri:"https://invalid.local/",profileMergePolicy:"immediate"});
+          const token=process.env.GH_TOKEN, owner="wekingchen", repo="Actions-OpenWrt-NG-Test", id="e2e-renamed-1005";
+          const s=await c.repositoryState(token,owner,repo);
+          try {
+            await c.deleteProfilePullRequest(token,owner,repo,id,{baseRefSha:s.baseRefSha});
+            throw new Error("protected delete unexpectedly accepted");
+          } catch(e) {
+            if (e?.code !== "protected_profile") throw e;
+            console.log("PROTECTED_DELETE_GUARD_OK="+e.code);
+          }
+          NODE
